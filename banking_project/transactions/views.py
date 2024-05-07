@@ -92,7 +92,7 @@ class CustomerTransferView(APIView):
         destination_account_number = data.get('destination_account_number')
         amount = data.get('amount')
 
-        
+        # Check if the user is authenticated and is a customer
         if request.user.is_authenticated and request.user.user_type == 'customer':
             # Retrieve the customer's account
             account = Account.objects.filter(user=user, account_number=account_number).first()

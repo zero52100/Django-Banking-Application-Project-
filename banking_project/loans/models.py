@@ -21,6 +21,7 @@ class LoanType(models.Model):
 
 class LoanApplication(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+    loan_account_number = models.CharField(max_length=14, unique=True, null=True, blank=True)
     loan_type = models.ForeignKey(LoanType, on_delete=models.CASCADE)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     status_choices = [
@@ -29,6 +30,8 @@ class LoanApplication(models.Model):
         ('rejected', 'Rejected'),
     ]
     status = models.CharField(max_length=20, choices=status_choices, default='applied')
-    loan_account = models.CharField(max_length=20)
+    
     branch_id = models.CharField(max_length=20)
     outstanding_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+
+

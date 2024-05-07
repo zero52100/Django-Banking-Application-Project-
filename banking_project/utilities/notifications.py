@@ -10,3 +10,8 @@ def send_balance_notification(account):
         email_from = settings.EMAIL_HOST_USER
         recipient_list = [account.user.email]
         send_mail(subject, message, email_from, recipient_list)
+
+def send_email(subject, message, recipient_list):
+    
+    email_from = settings.EMAIL_HOST_USER
+    send_mail(subject, message, email_from, recipient_list)
