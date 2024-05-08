@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'authentication',
     'accounts',
     'transactions',
+    'financial_planning',
     'loans',
     'rest_framework',
     'rest_framework_simplejwt.token_blacklist',

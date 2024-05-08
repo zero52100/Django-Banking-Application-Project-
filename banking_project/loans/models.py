@@ -37,5 +37,3 @@ class LoanApplication(models.Model):
     outstanding_balance = models.DecimalField(max_digits=15, decimal_places=2)
 
 
-
-
