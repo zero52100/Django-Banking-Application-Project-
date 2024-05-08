@@ -7,6 +7,7 @@ from accounts.models import Account
 from utilities.pagination import  CustomPagination
 from utilities.notifications import send_email
 
+
 from rest_framework.exceptions import NotFound
 
 class SavingsGoalCreateAPIView(generics.CreateAPIView):
@@ -91,6 +92,24 @@ class BudgetCreateAPIView(generics.CreateAPIView):
             
         else:
             return Response({'error': 'You are not eligible to create a budget.'}, status=status.HTTP_403_FORBIDDEN)
+        
+class BudgetListAPIView(generics.ListAPIView):
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        return Budget.objects.filter(user=user)
+    
+class ExpenseListAPIView(generics.ListAPIView):
+    serializer_class = BudgetSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        return Budget.objects.filter(user=user)
 
 class ExpenseCreateAPIView(generics.CreateAPIView):
     serializer_class = ExpenseSerializer
@@ -121,7 +140,7 @@ class ExpenseCreateAPIView(generics.CreateAPIView):
         else:
             return Response({'error': 'You are not eligible to create an expense.'}, status=status.HTTP_403_FORBIDDEN)
 
-from rest_framework.exceptions import NotFound
+
 
 class BudgetDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = BudgetSerializer
