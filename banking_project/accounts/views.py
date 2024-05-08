@@ -1,7 +1,7 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .models import Account, AccountType, Branch, BankStaff
-from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer
+from .models import Account, AccountType, Branch, BankStaff,Deposit
+from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer,DespositTypeSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import filters
 from rest_framework.views import APIView
@@ -101,7 +101,25 @@ class AccountTypeListCreateAPIView(generics.ListCreateAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
+#To add Desposit type
+class DespositTypeListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Deposit.objects.all()
+    serializer_class = DespositTypeSerializer
+    permission_classes = [permissions.IsAdminUser]
+    pagination_class = AccountTypePagination
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['deposit_type', ]
+    ordering_fields = ['deposit_type', 'account_subtype','status']
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 class AccountTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset=AccountType.objects.all()
     serializer_class=AccountTypeSerializer

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Branch,AccountType,BankStaff, Account
+from .models import Branch,AccountType,BankStaff, Account,Deposit
 import re
 
 class BranchSerializer(serializers.ModelSerializer):
@@ -56,6 +56,13 @@ class AccountTypeSerializer(serializers.ModelSerializer):
              'additional_atm_charge',
             'debit_card_yearly_fee','free_atm_withdrawals'
             
+        ]
+
+class DespositTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Deposit
+        fields = [
+            'id', 'deposit_type', 'interest_rate', 'created_at'
         ]
 
 class BankStaffSerializer(serializers.ModelSerializer):

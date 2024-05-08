@@ -118,3 +118,32 @@ def clear_branch_manager(sender, instance, **kwargs):
 
 
 
+class Deposit(models.Model):
+    DEPOSIT_TYPES = [
+        ('FD', 'Fixed Deposit'),
+        ('RD', 'Recurring Deposit'),
+    ]
+    
+    deposit_type = models.CharField(max_length=2, choices=DEPOSIT_TYPES)
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.get_deposit_type_display()} - {self.interest_rate}%"
+
+class UserDeposit(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    deposit = models.ForeignKey(Deposit, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    current_value = models.DecimalField(max_digits=15, decimal_places=2)
+    status_choices = [
+        ('open', 'open'),
+        ('closed', 'Closed'),
+    ]
+    status = models.CharField(max_length=20, choices=status_choices, default='open')
+    deposit_number =models.CharField(max_length=14, unique=True, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.deposit} - {self.amount}"
+
