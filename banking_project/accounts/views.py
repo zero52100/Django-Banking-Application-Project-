@@ -146,6 +146,32 @@ class AccountTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         serializer.save()
         return Response(serializer.data)
     
+class DepositTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Deposit.objects.all()
+    serializer_class = DespositTypeSerializer
+    permission_classes=[permissions.IsAdminUser]
+    pagination_class = AccountTypePagination
+
+    def delete(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance_id = instance.id
+        instance.delete()
+        message = f"DepositType with ID {instance_id} is deleted."
+        return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def put(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+    
 class BankStaffListCreateAPIView(generics.ListCreateAPIView):
     queryset = BankStaff.objects.all()
     serializer_class = BankStaffSerializer
