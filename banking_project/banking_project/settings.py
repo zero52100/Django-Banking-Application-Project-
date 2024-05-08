@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from celery.schedules import crontab
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -158,3 +159,13 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True 
 EMAIL_HOST_USER = 'loot4500@gmail.com'
 EMAIL_HOST_PASSWORD = 'khkbicclwrgnxjtn'
+
+
+
+# Celery Beat settings
+CELERY_BEAT_SCHEDULE = {
+    'reset-remaining-budget-monthly': {
+        'task': 'financial_planning.tasks.reset_remaining_budget',
+        'schedule': crontab(day_of_month='1', hour=0, minute=0),  # Run at midnight on the 1st of every month
+    },
+}

@@ -40,26 +40,15 @@ class SavingsGoal(models.Model):
 class Budget(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     monthly_budget = models.DecimalField(max_digits=15, decimal_places=2)
-    total_expenses = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    remaining_budget = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.username}'s Budget"
 
-    def save(self, *args, **kwargs):
-        # Calculate total expenses for the user
-        total_expenses = Expense.objects.filter(user=self.user).aggregate(total=models.Sum('amount'))['total']
-        if total_expenses is not None:
-            self.total_expenses = total_expenses
-        super().save(*args, **kwargs)
-
 class Expense(models.Model):
-    EXPENSE_CATEGORIES = [
-        ('withdrawal', 'Withdrawal'),
-        ('loan_repayment', 'Loan Repayment'),
-    ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    category = models.CharField(max_length=100, choices=EXPENSE_CATEGORIES)
+    category = models.CharField(max_length=100)
     amount = models.DecimalField(max_digits=15, decimal_places=2)
     date = models.DateField(auto_now_add=True)
 
