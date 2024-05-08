@@ -12,7 +12,10 @@ class Transaction(models.Model):
         ('deposit', 'Deposit'),
         ('withdrawal', 'Withdrawal'),
         ('transfer', 'Transfer'),
-        ('loan_repayment', 'Loan Repayment')
+        ('loan_repayment', 'Loan Repayment'),
+        ('processing_fee','Processing Fee'),
+        ('loan sactioned','Loan Sactioned')
+        
     ]
 
     STATUS_CHOICES = [

@@ -115,7 +115,7 @@ class CustomerTransferView(APIView):
                                     user=user,
                                     account=account,
                                     transaction_type='transfer',
-                                    amount=amount,
+                                    amount=-amount,
                                     status='successful',
                                     staff=None,
                                     destination_account_number=destination_account_number,
@@ -174,3 +174,6 @@ class CustomerTransferView(APIView):
                 return Response({'error': 'Invalid account number'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'error': 'User is not authenticated or not a customer'}, status=status.HTTP_403_FORBIDDEN)
+        
+
+

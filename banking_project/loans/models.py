@@ -1,6 +1,7 @@
 
 
 from django.db import models
+from accounts.models import Branch
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -28,10 +29,13 @@ class LoanApplication(models.Model):
         ('applied', 'Applied'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
+        ('closed', 'Closed'),
     ]
     status = models.CharField(max_length=20, choices=status_choices, default='applied')
-    
-    branch_id = models.CharField(max_length=20)
-    outstanding_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE,default=4)
+    outstanding_balance = models.DecimalField(max_digits=15, decimal_places=2)
+
+
 
 

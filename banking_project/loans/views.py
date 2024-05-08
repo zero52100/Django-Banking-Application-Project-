@@ -2,11 +2,18 @@ from django.shortcuts import render
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from .models import LoanType,LoanApplication
-from .serializers import  LoanTypeSerializer,LoanApplicationSerializer
+from transactions.models import Transaction
+from accounts.models import Account, BankStaff
+from django.db import transaction
+from django.core.exceptions import PermissionDenied
+from .serializers import  LoanTypeSerializer,LoanApplicationSerializer,LoanApprovalSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import filters
 from rest_framework.views import APIView
 from utilities.notifications import send_email
+from datetime import datetime
+from django.conf import settings
+
 
 
 import random
@@ -104,3 +111,111 @@ class LoanApplicationCreateView(generics.CreateAPIView):
                 return Response({'error': 'Invalid loan type'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             return Response({'error': 'User must be a customer with an approved account'}, status=status.HTTP_400_BAD_REQUEST)
+ # Generate a unique 15-digit  loan account number starting with '4500'
+def generate_loan_account_number():
+    return '3300' + ''.join(str(random.randint(0, 9)) for _ in range(11))
+class LoanApprovalAPIView(generics.GenericAPIView):
+    serializer_class = LoanApprovalSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        staff = BankStaff.objects.filter(user=user, designation='loan_officer').first()
+        # Check if the user is a loan officer
+        if staff:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            action = serializer.validated_data['action']
+            loan_application_id = serializer.validated_data['loan_application_id']
+
+            try:
+                loan_application = LoanApplication.objects.get(id=loan_application_id)
+                print("Loan application status:", loan_application.user)  # Moved print statement here
+            except LoanApplication.DoesNotExist:
+                return Response({'error': 'Loan application not found'}, status=status.HTTP_404_NOT_FOUND)
+
+            print("Staff branch ID:", staff.branch_id)
+            print("Loan application branch ID:", loan_application.branch_id)
+            print("Loan application status:", loan_application.status)
+            
+            # Check if the loan application belongs to the same branch as the loan officer
+            if loan_application.branch_id != staff.branch_id:
+                raise PermissionDenied("You don't have permission to process this loan application.")
+            
+            # Check if the loan application is already approved or closed
+            if loan_application.status in ['approved', 'closed']:
+                return Response({'error': 'Loan application is already approved or closed'}, status=status.HTTP_400_BAD_REQUEST)
+
+            with transaction.atomic():
+                if action == 'approve':
+                    # Update loan status to approved
+                    loan_application.status = 'approved'
+                    loan_application.save()
+                    loan_application.loan_account_number = generate_loan_account_number() 
+                    
+                    # Transfer loan amount to user's bank account and update balance
+                    loan_application.user.account.account_balance += loan_application.amount
+                    loan_application.user.account.save()
+                    processing_fee_transaction = Transaction.objects.create(
+                        user=loan_application.user,
+                        account=loan_application.user.account,
+                        amount=loan_application.amount,  
+                        transaction_type='loan_sactioned',
+                        destination_account_number=loan_application.loan_account_number,
+                    
+   
+
+                        
+                    )
+                    subject = 'Loan Sanctioned Notification'
+                    message = f"Your {loan_application.loan_type.name} loan application has been sanctioned. The amount has been transferred to account number: {loan_application.user.account.account_number}.\nLoan account number: {loan_application.loan_account_number}\nSanctioned amount: {loan_application.amount}"
+                    recipient_list = [loan_application.user.email]
+                    send_email(subject, message, recipient_list)
+                    processing_fee_transaction.account_balance = loan_application.user.account.account_balance
+                    processing_fee_transaction.save()
+
+                    # Calculate and update outstanding balance with interest
+                    current_date = datetime.now().date()
+                    creation_date = loan_application.created_at.date()
+                    months_since_creation = (current_date.year - creation_date.year) * 12 + current_date.month - creation_date.month
+                    interest_rate_per_month = loan_application.loan_type.interest_rate / 100 / 12
+                    outstanding_balance = loan_application.amount * ((1 + interest_rate_per_month) ** months_since_creation)
+                    loan_application.outstanding_balance = outstanding_balance
+                    loan_application.save()
+
+                    # If outstanding balance is fully paid, update status to closed
+                    if loan_application.outstanding_balance <= 0:
+                        loan_application.status = 'closed'
+                        loan_application.save()
+
+                    # Create a transaction for processing fee deduction
+                    processing_fee_transaction = Transaction.objects.create(
+                        user=loan_application.user,
+                        account=loan_application.user.account,
+                        amount=-loan_application.loan_type.processing_fee,  
+                        transaction_type='processing_fee',
+                        
+
+                        
+                    )
+                    processing_fee_transaction.account_balance = loan_application.user.account.account_balance - processing_fee_transaction.amount
+                    processing_fee_transaction.save()
+
+                    return Response({'message': 'Loan application approved successfully'}, status=status.HTTP_200_OK)
+
+                elif action == 'reject':
+                   
+                    loan_application.status = 'rejected'
+                    loan_application.save()
+
+                    subject = 'Loan Rejection Notification'
+                    message = f"Your {loan_application.loan_type.name} loan application has been rejected. Please contact us for further details."
+                    recipient_list = [loan_application.user.email]
+                    send_email(subject, message, recipient_list)
+
+                    return Response({'message': 'Loan application rejected successfully'}, status=status.HTTP_200_OK)
+
+                else:
+                    return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            raise PermissionDenied("You don't have permission to process loans.")
