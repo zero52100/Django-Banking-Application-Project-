@@ -7,6 +7,7 @@ from accounts.models import Account, BankStaff
 from django.core.mail import send_mail
 from django.conf import settings
 from utilities.notifications import send_balance_notification
+from utilities.goal_checker import check_savings_goal_status
 
 
 class TransactionViewSet(APIView):
@@ -39,7 +40,7 @@ class TransactionViewSet(APIView):
 
                         # Update the account balance after deposit
                         account.account_balance += amount
-                        
+                        check_savings_goal_status(account.user)
                         account.save()
                         subject = 'Deposit Notification'
                         message = f"Hello {account.user.full_name},\n\nYour deposit transaction of ₹{amount} has been successful. \n Transaction ID: {transaction.transaction_number}"
@@ -148,6 +149,7 @@ class CustomerTransferView(APIView):
                                 # Update the destination account balance
                                 destination_account.account_balance += amount
                                 destination_account.save()
+                                check_savings_goal_status(destination_account.user)
                                 
                                 send_balance_notification(destination_account)
                                 # Send withdrawal notification to sender

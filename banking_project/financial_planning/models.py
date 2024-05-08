@@ -1,8 +1,9 @@
 from django.db import models
+from django.core.mail import send_mail
+from django.conf import settings
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
-
 
 class SavingsGoal(models.Model):
     GOAL_STATUS_CHOICES = [
@@ -19,6 +20,23 @@ class SavingsGoal(models.Model):
 
     def __str__(self):
         return self.goal_name
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.status == 'processing':
+            account_balance = self.user.account.account_balance
+            
+            if account_balance >= self.goal_amount:
+                self.status = 'achieved'
+                self.save()
+                send_mail(
+                    'Savings Goal Achieved',
+                    f'Congratulations! Your savings goal "{self.goal_name}" has been achieved.',
+                    settings.EMAIL_HOST_USER,
+                    [self.user.email],
+                    fail_silently=True,
+                )
+                print(account_balance)
 class Budget(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     monthly_budget = models.DecimalField(max_digits=15, decimal_places=2)
