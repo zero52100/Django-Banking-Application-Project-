@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import BranchListCreateAPIView, BranchDetailAPIView,AccountTypeListCreateAPIView,AccountTypeDetailsAPIView,BankStaffListCreateAPIView,BankStaffDetailsAPIView,AccountCreateAPIView, AccountApprovalAPIView,AccountDetailsAPIView,DespositTypeListCreateAPIView,DepositTypeDetailsAPIView,DepositCreateAPIView
+from .views import BranchListCreateAPIView, BranchDetailAPIView,AccountTypeListCreateAPIView,AccountTypeDetailsAPIView,BankStaffListCreateAPIView,BankStaffDetailsAPIView,AccountCreateAPIView, AccountApprovalAPIView,AccountDetailsAPIView,DespositTypeListCreateAPIView,DepositTypeDetailsAPIView,DepositCreateAPIView,DepositCloseAPIView
 
 
 urlpatterns = [
@@ -15,4 +15,5 @@ urlpatterns = [
     path('depositType/', DespositTypeListCreateAPIView.as_view(), name='depositType-create'),
     path('depositType/<int:pk>/', DepositTypeDetailsAPIView.as_view(), name='depositType-detail'),
     path('deposit/create/', DepositCreateAPIView.as_view(), name='deposit-create'),
+    path('deposit/close/<int:deposit_id>/', DepositCloseAPIView.as_view(), name='close_deposit'),
 ]

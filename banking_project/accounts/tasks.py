@@ -1,23 +1,23 @@
-
-from celery import shared_task
-from datetime import datetime
-from dateutil.relativedelta import relativedelta
 from .models import UserDeposit
+from datetime import datetime
+import logging
 
-@shared_task
+logger = logging.getLogger(__name__)
+
 def calculate_interest_and_update():
-    # Get all open UserDeposit objects
+    logger.info(f"Interest calculation started at {datetime.now()}")
     deposits = UserDeposit.objects.filter(status='open')
     
-    # Calculate interest for each deposit
     for deposit in deposits:
         deposit_type = deposit.deposit_type
         current_value = deposit.current_value
         interest_rate = deposit_type.interest_rate
-        
-        # Calculate interest
+        print(interest_rate)
         interest = (current_value * interest_rate) / 100
         
-        # Update current value with interest
-        deposit.current_value += interest
+        deposit.current_value += 3
+        deposit.current_value += 3  # Adding 3 for testing purposes
         deposit.save()
+        print(deposit.current_value)
+    
+    logger.info(f"Interest calculation completed at {datetime.now()}")

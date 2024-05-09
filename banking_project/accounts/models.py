@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.signals import post_save,post_delete
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
+from datetime import datetime, timedelta
 
 User = get_user_model()
 
@@ -147,3 +148,25 @@ class UserDeposit(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.deposit} - {self.amount}"
 
+
+@receiver(post_save, sender=UserDeposit)
+def calculate_interest(sender, instance, created, **kwargs):
+    if created:
+        deposit_type = instance.deposit_type
+        current_amount = instance.amount
+        interest_rate = deposit_type.interest_rate
+        
+        # Calculate interest from creation to current time
+        creation_date = instance.created_at.date()
+        current_date = datetime.now().date()
+        days_difference = (current_date - creation_date).days
+        daily_interest_rate = interest_rate / 365
+        interest = current_amount * daily_interest_rate * days_difference
+        
+        # Update the current value with interest
+        instance.current_value = current_amount + interest
+        instance.save()
+
+        
+
+        

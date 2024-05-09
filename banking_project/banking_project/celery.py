@@ -11,14 +11,20 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 
 app.autodiscover_tasks()
 
+# Ensure Celery tasks run synchronously without RabbitMQ
+app.conf.update(
+    CELERY_TASK_ALWAYS_EAGER=True,
+)
+
+# Define Celery beat schedule
 app.conf.beat_schedule = {
     'calculate-interest-every-month': {
-        'task': 'account.tasks.calculate_interest_and_update',  # Task from account.tasks
+        'task': 'account.tasks.calculate_interest_and_update',
         'schedule': crontab(day_of_month=1, hour=0, minute=0),
     },
     'reset-remaining-budget-monthly': {
-        'task': 'financial_planning.tasks.reset_remaining_budget',  # Task from financial_planning.tasks
-        'schedule': crontab(day_of_month=1, hour=0, minute=0),  # Run at midnight on the 1st of every month
+        'task': 'financial_planning.tasks.reset_remaining_budget',
+        'schedule': crontab(day_of_month=1, hour=0, minute=0),
     },
 }
 

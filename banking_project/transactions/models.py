@@ -15,7 +15,8 @@ class Transaction(models.Model):
         ('loan_repayment', 'Loan Repayment'),
         ('processing_fee','Processing Fee'),
         ('loan sactioned','Loan Sactioned'),
-        ('deposit_creation','FD/RD Creation')
+        ('deposit_creation','FD/RD Creation'),
+        ('deposit_clouser','FD/RD Clouser')
         
     ]
 

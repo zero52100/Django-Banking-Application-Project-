@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions, status
+from datetime import datetime, timedelta
 from rest_framework.response import Response
 from transactions.models import Transaction
 from django.db import transaction
@@ -257,6 +258,60 @@ class DepositCreateAPIView(APIView):
            
 
         return Response({"message": f"{deposit_type} created successfully."}, status=status.HTTP_201_CREATED)
+    
+#Deposit close
+class DepositCloseAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, deposit_id):
+        try:
+            deposit = UserDeposit.objects.get(id=deposit_id, status='open', user=request.user)
+            account = Account.objects.get(user=request.user)
+
+            with transaction.atomic():
+                # Calculate interest from creation to current time
+                deposit_type = deposit.deposit_type
+                current_amount = deposit.amount
+                interest_rate = deposit_type.interest_rate
+                creation_date = deposit.created_at.date()
+                current_date = datetime.now().date()
+                days_difference = (current_date - creation_date).days
+                daily_interest_rate = interest_rate / 365
+                interest = current_amount * daily_interest_rate * days_difference
+
+                # Update the current value with interest
+                deposit.current_value = current_amount + interest
+                deposit.save()
+
+                # Add current value to user's account balance
+                account.account_balance += deposit.current_value
+                account.save()
+
+                # Set deposit status to closed
+                deposit.status = 'closed'
+                deposit.save()
+                Transaction.objects.create(
+                        user=request.user,
+                        account=request.user.account,
+                        amount=deposit.current_value,  
+                        transaction_type='deposit_clouser',
+                        
+                    )
+                # Send notification
+                subject = 'Deposit Closed Notification'
+                message = f"Dear {request.user.full_name},\n\nYour deposit closure request has been successfully processed.\n\nDeposit Amount: {deposit.current_value}"
+                recipient_list = [request.user.email]
+                send_email(subject, message, recipient_list)
+
+                serializer = DepositCreationSerializer(deposit)
+
+                return Response({"message": "Deposit closed successfully.", "data": serializer.data}, status=status.HTTP_200_OK)
+
+        except UserDeposit.DoesNotExist:
+            return Response({"error": "Deposit does not exist or is already closed."}, status=status.HTTP_404_NOT_FOUND)
+        except Account.DoesNotExist:
+            return Response({"error": "User account not found."}, status=status.HTTP_404_NOT_FOUND)
+
 
 def generate_deposit_account_number():
     return '8080' + ''.join(str(random.randint(0, 9)) for _ in range(8))
