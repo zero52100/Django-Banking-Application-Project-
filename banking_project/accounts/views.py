@@ -1,13 +1,16 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from .models import Account, AccountType, Branch, BankStaff,Deposit
-from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer,DespositTypeSerializer
+from transactions.models import Transaction
+from django.db import transaction
+from .models import Account, AccountType, Branch, BankStaff,Deposit,UserDeposit
+from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer,DespositTypeSerializer,DepositCreationSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import filters
 from rest_framework.views import APIView
 import random
 from django.core.mail import send_mail
 from django.conf import settings
+from utilities.notifications import send_balance_notification,send_email
 
 class BranchPagination(PageNumberPagination):
     page_size = 3
@@ -145,7 +148,7 @@ class AccountTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
-    
+
 class DepositTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Deposit.objects.all()
     serializer_class = DespositTypeSerializer
@@ -171,6 +174,92 @@ class DepositTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+    
+#To Customer  Desposit Creation
+class DepositCreateAPIView(APIView):
+    serializer_class = DepositCreationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        # Check if user is a customer and active
+        if request.user.user_type != 'customer' or request.user.account.status != 'approved':
+            return Response({"error": "Only active customers can create deposits."}, status=status.HTTP_403_FORBIDDEN)
+
+        deposit_type_id = request.data.get('deposit_type')
+        amount = request.data.get('amount')
+        
+        # Check if deposit type and amount are provided
+        if not deposit_type_id or not amount:
+            return Response({"error": "Deposit type and amount are required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Check if user has sufficient balance
+        if request.user.account.account_balance < amount:
+            return Response({"error": "Insufficient balance."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get the Deposit object corresponding to the provided ID
+        try:
+            deposit_type = Deposit.objects.get(pk=deposit_type_id)
+        except Deposit.DoesNotExist:
+            return Response({"error": "Invalid deposit type."}, status=status.HTTP_400_BAD_REQUEST)
+
+        with transaction.atomic():
+            # Deduct amount from user's account balance
+            request.user.account.account_balance -= amount
+            request.user.account.save()
+            send_balance_notification(request.user.account)
+
+            # Create FD/RD
+            deposit = UserDeposit.objects.create(
+                user=request.user,
+                deposit_type=deposit_type,  # Use the Deposit object instead of the ID
+                amount=amount,
+                current_value=amount,
+            )
+            account_number = generate_deposit_account_number()
+            deposit.deposit_number = account_number
+            subject = 'Deposit Withdrawal Notification'
+            message = f"Dear {request.user.full_name},\n\nYour withdrawal request for  Deposit has been successfully processed.\n\nWithdrawn Amount: {amount}"
+            recipient_list = [request.user.email]
+            send_email(subject, message, recipient_list)
+            
+            subject = 'Deposit Creation Notification'
+            message = f"Dear {request.user.full_name},\n\nYour Deposit has been successfully created.\n\nAmount: {amount}\nDeposit Type: {deposit_type} Deposit.\nDeposit Account No:{deposit.deposit_number}"
+            recipient_list = [request.user.email]
+            send_email(subject, message, recipient_list)
+             # Generate FD/RD account number
+            account_number = generate_deposit_account_number()
+            deposit.deposit_number = account_number
+            deposit.save()
+            Transaction.objects.create(
+                        user=request.user,
+                        account=request.user.account,
+                        amount=-amount,  
+                        transaction_type='transfer-deposit_creation',
+                        
+                    
+   
+
+                        
+                    )
+            
+            Transaction.objects.create(
+                        user=request.user,
+                        account=request.user.account,
+                        amount=amount,  
+                        transaction_type='deposit_creation',
+                        
+                    
+   
+
+                        
+                    )
+
+           
+
+        return Response({"message": f"{deposit_type} created successfully."}, status=status.HTTP_201_CREATED)
+
+def generate_deposit_account_number():
+    return '8080' + ''.join(str(random.randint(0, 9)) for _ in range(8))
     
 class BankStaffListCreateAPIView(generics.ListCreateAPIView):
     queryset = BankStaff.objects.all()

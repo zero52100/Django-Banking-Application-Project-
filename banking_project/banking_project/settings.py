@@ -162,10 +162,3 @@ EMAIL_HOST_PASSWORD = 'khkbicclwrgnxjtn'
 
 
 
-# Celery Beat settings
-CELERY_BEAT_SCHEDULE = {
-    'reset-remaining-budget-monthly': {
-        'task': 'financial_planning.tasks.reset_remaining_budget',
-        'schedule': crontab(day_of_month='1', hour=0, minute=0),  # Run at midnight on the 1st of every month
-    },
-}

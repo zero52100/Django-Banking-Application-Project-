@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Branch,AccountType,BankStaff, Account,Deposit
+from .models import Branch,AccountType,BankStaff, Account,Deposit,UserDeposit
 import re
 
 class BranchSerializer(serializers.ModelSerializer):
@@ -87,4 +87,14 @@ class AccountCreationSerializer(serializers.ModelSerializer):
         return value
     
 
-        
+
+class DepositCreationSerializer(serializers.Serializer):
+    class Meta:
+        model = Deposit
+        fields = ['deposit_type', 'amount']
+    
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Amount must be greater than zero.")
+        return value
