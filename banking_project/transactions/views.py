@@ -9,6 +9,7 @@ from django.conf import settings
 from utilities.notifications import send_balance_notification
 from utilities.goal_checker import check_savings_goal_status
 from authentication.Permissions.permission import check_blacklisted_access_token
+from utilities.montly_limit_check import check_transaction_limit
 
 
 class TransactionViewSet(APIView):
@@ -23,7 +24,12 @@ class TransactionViewSet(APIView):
             if transaction_type in ['deposit', 'withdrawal']:
                 account_number = data.get('account_number')
                 amount = data.get('amount')
+                
                 account = Account.objects.filter(account_number=account_number).first()
+                valid_transaction, error_message = check_transaction_limit(account.user, amount)
+                if not valid_transaction:
+                    return Response({'error': error_message}, status=status.HTTP_400_BAD_REQUEST)
+                
                 if account:
                     if transaction_type == 'deposit':
                         transaction = Transaction(
@@ -95,7 +101,7 @@ class CustomerTransferView(APIView):
         account_number = data.get('account_number')
         destination_account_number = data.get('destination_account_number')
         amount = data.get('amount')
-
+        
         # Check if the user is authenticated and is a customer
         if request.user.is_authenticated and request.user.user_type == 'customer':
             # Retrieve the customer's account
