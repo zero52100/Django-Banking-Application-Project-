@@ -6,7 +6,7 @@ from .serializers import SavingsGoalSerializer,BudgetSerializer, ExpenseSerializ
 from accounts.models import Account
 from utilities.pagination import  CustomPagination
 from utilities.notifications import send_email
-
+from authentication.Permissions.permission import check_blacklisted_access_token
 
 from rest_framework.exceptions import NotFound
 
@@ -15,6 +15,7 @@ class SavingsGoalCreateAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        check_blacklisted_access_token(request)
         user = request.user
         if user.user_type == 'customer' and user.account.status == 'approved':
             serializer = self.get_serializer(data=request.data)
@@ -29,6 +30,7 @@ class SavingsGoalListAPIView(generics.ListAPIView):
     pagination_class = CustomPagination
 
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         user = self.request.user
         return SavingsGoal.objects.filter(user=user)
 
@@ -37,12 +39,14 @@ class SavingsGoalDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = SavingsGoalSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = CustomPagination
-
+    
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         user = self.request.user
         return SavingsGoal.objects.filter(user=user)
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
@@ -50,6 +54,7 @@ class SavingsGoalDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if instance.status != 'processing':
             return Response({"error": "You can only edit savings goals with status 'processing'."}, status=status.HTTP_403_FORBIDDEN)
@@ -60,6 +65,7 @@ class SavingsGoalDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if instance.status != 'processing':
             return Response({"error": "You can only edit savings goals with status 'processing'."}, status=status.HTTP_403_FORBIDDEN)
@@ -73,6 +79,7 @@ class BudgetCreateAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         user = request.user
         # Check if the user already has a budget
         if Budget.objects.filter(user=user).exists():
@@ -99,6 +106,7 @@ class BudgetListAPIView(generics.ListAPIView):
     pagination_class = CustomPagination
 
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         user = self.request.user
         return Budget.objects.filter(user=user)
     
@@ -108,6 +116,7 @@ class ExpenseListAPIView(generics.ListAPIView):
     pagination_class = CustomPagination
 
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         user = self.request.user
         return Budget.objects.filter(user=user)
 
@@ -116,6 +125,7 @@ class ExpenseCreateAPIView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         user = request.user
         if user.user_type == 'customer' and user.account.status == 'approved':
             serializer = self.get_serializer(data=request.data)
@@ -148,10 +158,12 @@ class BudgetDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     pagination_class = CustomPagination
 
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         user = self.request.user
         return Budget.objects.filter(user=user)
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
@@ -159,6 +171,7 @@ class BudgetDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if instance.user.user_type != 'customer':
             return Response({"error": "You are not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)
@@ -169,6 +182,7 @@ class BudgetDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if instance.user.user_type != 'customer':
             return Response({"error": "You are not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)
@@ -184,10 +198,12 @@ class ExpenseDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     pagination_class = CustomPagination
 
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         user = self.request.user
         return Expense.objects.filter(user=user)
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
@@ -195,6 +211,7 @@ class ExpenseDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if instance.user.user_type != 'customer':
             return Response({"error": "You are not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)
@@ -205,6 +222,7 @@ class ExpenseDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if instance.user.user_type != 'customer':
             return Response({"error": "You are not authorized to perform this action."}, status=status.HTTP_403_FORBIDDEN)

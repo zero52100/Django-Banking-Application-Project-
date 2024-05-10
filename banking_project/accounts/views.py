@@ -2,6 +2,9 @@ from rest_framework import generics, permissions, status
 from datetime import datetime, timedelta
 from rest_framework.response import Response
 from transactions.models import Transaction
+from authentication.models import CustomsTokens
+from rest_framework.exceptions import PermissionDenied
+from authentication.Permissions.permission import check_blacklisted_access_token
 from django.db import transaction
 from .models import Account, AccountType, Branch, BankStaff,Deposit,UserDeposit
 from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer,DespositTypeSerializer,DepositCreationSerializer
@@ -12,7 +15,8 @@ import random
 from django.core.mail import send_mail
 from django.conf import settings
 from utilities.notifications import send_balance_notification,send_email
-
+# from authentication.Permissions.custom_permissions import IsValidRefreshToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
 class BranchPagination(PageNumberPagination):
     page_size = 3
     page_query_param = 'page'
@@ -28,6 +32,7 @@ class BranchListCreateAPIView(generics.ListCreateAPIView):
     search_fields = ['branch_name', 'bank_name','status','ifsc_code','id']
     ordering_fields = ['branch_name', 'bank_name','status','ifsc_code','id']
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         queryset = super().get_queryset()
         branch_name = self.request.query_params.get('branch_name', None)
         branch_id = self.request.query_params.get('id', None)
@@ -39,12 +44,14 @@ class BranchListCreateAPIView(generics.ListCreateAPIView):
             
         return queryset
     def perform_create(self, serializer):
+        check_blacklisted_access_token(self.request)
         serializer.validated_data['added_by'] = self.request.user
         instance = serializer.save()
         if instance.bank_manager:
             instance.status = 'active'
             instance.save()
     def list(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if not queryset.exists(): 
@@ -61,6 +68,7 @@ class BranchDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
@@ -68,6 +76,7 @@ class BranchDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -75,6 +84,7 @@ class BranchDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -97,6 +107,7 @@ class AccountTypeListCreateAPIView(generics.ListCreateAPIView):
     ordering_fields = ['account_type', 'account_subtype','status']
 
     def list(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -116,6 +127,7 @@ class DespositTypeListCreateAPIView(generics.ListCreateAPIView):
     ordering_fields = ['deposit_type', 'account_subtype','status']
 
     def list(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -131,12 +143,14 @@ class AccountTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     pagination_class = AccountTypePagination
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
         message = f"AccountType with ID {instance_id} is deleted."
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -144,6 +158,7 @@ class AccountTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -157,12 +172,14 @@ class DepositTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     pagination_class = AccountTypePagination
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
         message = f"DepositType with ID {instance_id} is deleted."
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -170,6 +187,7 @@ class DepositTypeDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -182,9 +200,7 @@ class DepositCreateAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        # Check if user is a customer and active
-        if request.user.user_type != 'customer' or request.user.account.status != 'approved':
-            return Response({"error": "Only active customers can create deposits."}, status=status.HTTP_403_FORBIDDEN)
+        check_blacklisted_access_token(request)
 
         deposit_type_id = request.data.get('deposit_type')
         amount = request.data.get('amount')
@@ -264,7 +280,13 @@ class DepositCloseAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, deposit_id):
+        check_blacklisted_access_token(self.request)
         try:
+            access_token = request.META.get('HTTP_AUTHORIZATION', '').split(' ')[1]
+            
+            # Check if the access token is blacklisted
+            if CustomsTokens.objects.filter(access_token=access_token, blacklisted=True).exists():
+                raise PermissionDenied('Access token is blacklisted.')
             deposit = UserDeposit.objects.get(id=deposit_id, status='open', user=request.user)
             account = Account.objects.get(user=request.user)
 
@@ -325,6 +347,7 @@ class BankStaffListCreateAPIView(generics.ListCreateAPIView):
     search_fields = ['designation', 'branch']
     ordering_fields = ['designation', 'branch']
     def get_queryset(self):
+        check_blacklisted_access_token(self.request)
         queryset = super().get_queryset()
         designation = self.request.query_params.get('designation', None)
         branch_id = self.request.query_params.get('branch_id', None)
@@ -336,6 +359,7 @@ class BankStaffListCreateAPIView(generics.ListCreateAPIView):
             
         return queryset
     def list(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if not queryset.exists(): 
@@ -348,6 +372,7 @@ class BankStaffListCreateAPIView(generics.ListCreateAPIView):
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         # Check if the requesting user is an admin
         if not request.user.is_superuser:
             return Response({"message": "You do not have permission to perform this action."},
@@ -368,12 +393,14 @@ class BankStaffDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     pagination_class = AccountTypePagination
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance_id = instance.id
         instance.delete()
         message = f"BankStaff with ID {instance_id} is deleted."
         return Response({"message": message}, status=status.HTTP_204_NO_CONTENT)
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -381,6 +408,7 @@ class BankStaffDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -399,6 +427,7 @@ class AccountCreateAPIView(APIView):
     serializer_class = AccountCreationSerializer
 
     def post(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
        
         if Account.objects.filter(user=request.user).exists():
             return Response({"error": "User already has an account."}, status=status.HTTP_400_BAD_REQUEST)
@@ -419,6 +448,7 @@ class AccountCreateAPIView(APIView):
 
 class AccountApprovalAPIView(APIView):
     def put(self, request, account_id, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         if request.user.is_authenticated and request.user.user_type == 'staff':
             staff = BankStaff.objects.get(user=request.user)
             if staff.designation == 'manager' and staff.branch.bank_manager == request.user:
@@ -467,6 +497,7 @@ class AccountDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if request.user == instance.user or request.user.staff.branch == instance.branch:
             serializer = self.get_serializer(instance)
@@ -475,6 +506,7 @@ class AccountDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
             return Response({"message": "Unauthorized to view this account details"}, status=status.HTTP_403_FORBIDDEN)
 
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if request.user.staff and request.user.staff.branch == instance.branch:
             serializer = self.get_serializer(instance, data=request.data, partial=True)
@@ -485,6 +517,7 @@ class AccountDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
             return Response({"message": "Unauthorized to perform patch operation on this account"}, status=status.HTTP_403_FORBIDDEN)
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         if request.user.is_authenticated and request.user.staff and request.user.staff.designation == 'manager':
             instance.delete()

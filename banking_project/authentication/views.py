@@ -2,7 +2,7 @@ import random
 from django.core.mail import send_mail
 from rest_framework import generics, status
 from rest_framework.response import Response
-from .models import User
+from .models import User,CustomsTokens
 from .serializers import UserSerializer
 from rest_framework import status
 from rest_framework.response import Response
@@ -13,6 +13,11 @@ from .serializers import LoginSerializer
 from django.contrib.auth.hashers import check_password
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.utils import timezone
+from django.contrib.auth import logout
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken
+from rest_framework_simplejwt.exceptions import TokenError
+
 
 class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
@@ -81,20 +86,52 @@ class LoginView(APIView):
             except User.DoesNotExist:
                 return Response({'message': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            
             if not user.is_active:
                 return Response({'message': 'User account is not active.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            
             if not user.check_password(password):
                 return Response({'message': 'Invalid email or password.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-            # Generate JWT token
-            refresh = RefreshToken.for_user(user)
+            # Blacklist all outstanding access tokens associated with the user
+            
+            
+             # Retrieve refresh tokens associated with the user
+            CustomsTokens.objects.filter(user=user).update(blacklisted=True)
+
+            # Generate a new pair of tokens
+            new_refresh = RefreshToken.for_user(user)
+            new_access = new_refresh.access_token
+
+            # Save the tokens to the database
+            CustomsTokens.objects.create(user=user, access_token=str(new_access), refresh_token=str(new_refresh))
+
             return Response({
                 'message': 'Login successful.',
-                'access_token': str(refresh.access_token),
-                'refresh_token': str(refresh),
+                'access_token': str(new_access),
+                'refresh_token': str(new_refresh),
             }, status=status.HTTP_200_OK)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class LogoutAPIView(APIView):
+    def post(self, request):
+        refresh_token = request.data.get('refresh_token')
+        print("Access Token:", refresh_token)
+        print("Request Data:", request.data)
+        print("Refresh Token:", refresh_token)
+        if refresh_token:
+            try:
+                # Retrieve the CustomsTokens instance associated with the refresh token
+                custom_token = CustomsTokens.objects.get(refresh_token=refresh_token)
+                
+                # Print the access token for debugging
+                
+
+                # Blacklist the refresh token
+                custom_token.blacklisted = True
+                custom_token.save()
+
+                return Response({"message": "Logout successful."}, status=status.HTTP_200_OK)
+            except CustomsTokens.DoesNotExist:
+                pass  # Handle case where refresh token is not found
+
+        return Response({"message": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)

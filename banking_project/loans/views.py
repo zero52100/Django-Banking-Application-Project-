@@ -13,6 +13,7 @@ from rest_framework.views import APIView
 from utilities.notifications import send_email
 from datetime import datetime
 from django.conf import settings
+from authentication.Permissions.permission import check_blacklisted_access_token
 
 
 
@@ -35,6 +36,7 @@ class LoanTypeListCreateView(generics.ListCreateAPIView):
     ordering_fields = ['name']
 
     def list(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -49,11 +51,13 @@ class LoanTypeDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
 
     def delete(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def put(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -61,6 +65,7 @@ class LoanTypeDetailUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         return Response(serializer.data)
 
     def patch(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
@@ -73,6 +78,7 @@ class LoanApplicationCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
+        check_blacklisted_access_token(self.request)
         user = request.user
 
         # Check if the user is a customer and their account is approved
@@ -120,6 +126,7 @@ class LoanApprovalAPIView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        check_blacklisted_access_token(self.request)
         user = request.user
         staff = BankStaff.objects.filter(user=user, designation='loan_officer').first()
         # Check if the user is a loan officer

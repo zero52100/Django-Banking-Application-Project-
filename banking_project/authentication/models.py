@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
-from datetime import datetime
+from datetime import datetime,timedelta
 from django.utils import timezone
 
 
@@ -80,3 +80,17 @@ class User(AbstractBaseUser, PermissionsMixin):
             self.age = age
     
         super().save(*args, **kwargs)
+class CustomsTokens(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    access_token = models.CharField(max_length=255)
+    refresh_token = models.CharField(max_length=255)
+    access_token_expiry = models.DateTimeField(default=timezone.now() + timedelta(minutes=30))
+    refresh_token_expiry = models.DateTimeField(default=timezone.now() + timedelta(days=1))
+    blacklisted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def is_access_token_expired(self):
+        return timezone.now() > self.access_token_expiry
+
+    def is_refresh_token_expired(self):
+        return timezone.now() > self.refresh_token_expiry

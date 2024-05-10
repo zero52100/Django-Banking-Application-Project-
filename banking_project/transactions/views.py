@@ -8,11 +8,13 @@ from django.core.mail import send_mail
 from django.conf import settings
 from utilities.notifications import send_balance_notification
 from utilities.goal_checker import check_savings_goal_status
+from authentication.Permissions.permission import check_blacklisted_access_token
 
 
 class TransactionViewSet(APIView):
 
     def post(self, request):
+        check_blacklisted_access_token(self.request)
         data = request.data
         user = request.user
         staff = BankStaff.objects.filter(user=user, designation='cashier').first()
@@ -87,6 +89,7 @@ class TransactionViewSet(APIView):
 class CustomerTransferView(APIView):
     
     def post(self, request):
+        check_blacklisted_access_token(self.request)
         data = request.data
         user = request.user
         account_number = data.get('account_number')
