@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied
 from authentication.Permissions.permission import check_blacklisted_access_token
 from django.db import transaction
 from .models import Account, AccountType, Branch, BankStaff,Deposit,UserDeposit
-from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer,DespositTypeSerializer,DepositCreationSerializer
+from .serializers import BranchSerializer,AccountTypeSerializer,BankStaffSerializer,AccountCreationSerializer,DespositTypeSerializer,DepositCreationSerializer,AccounDashboardSerializer
 from rest_framework.pagination import PageNumberPagination
 from rest_framework import filters
 from rest_framework.views import APIView
@@ -524,3 +524,25 @@ class AccountDetailsAPIView(generics.RetrieveUpdateDestroyAPIView):
             return Response({"message": f"Account with ID {instance.id} is deleted."}, status=status.HTTP_204_NO_CONTENT)
         else:
             return Response({"message": "Unauthorized to perform delete operation on this account"}, status=status.HTTP_403_FORBIDDEN)
+        
+class AccountDetailsAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        # Check the user's role
+        if request.user.user_type == 'customer':
+            # Retrieve the account details for the customer
+            account = Account.objects.filter(user=request.user).first()
+            if account.status=='approved':
+                serializer = AccounDashboardSerializer(account)
+
+                
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            elif account.status=='applied':
+                 
+                return Response({"message": "Account not approved yet"}, status=status.HTTP_200_OK)
+            else:
+                return Response({"message": "Account details not found for this user"}, status=status.HTTP_404_NOT_FOUND)
+        
+        else:
+            return Response({"message": "Unauthorized to view account details"}, status=status.HTTP_403_FORBIDDEN)

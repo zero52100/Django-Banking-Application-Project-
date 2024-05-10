@@ -16,4 +16,5 @@ urlpatterns = [
     path('depositType/<int:pk>/', DepositTypeDetailsAPIView.as_view(), name='depositType-detail'),
     path('deposit/create/', DepositCreateAPIView.as_view(), name='deposit-create'),
     path('deposit/close/<int:deposit_id>/', DepositCloseAPIView.as_view(), name='close_deposit'),
+    path('dashboard/',AccountDetailsAPIView.as_view(),name="user-dashboad")
 ]

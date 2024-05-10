@@ -1,6 +1,6 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status,generics,permissions
 from .models import Transaction
 from .serializers import TransactionSerializer
 from accounts.models import Account, BankStaff
@@ -10,7 +10,7 @@ from utilities.notifications import send_balance_notification
 from utilities.goal_checker import check_savings_goal_status
 from authentication.Permissions.permission import check_blacklisted_access_token
 from utilities.montly_limit_check import check_transaction_limit
-
+from utilities.pagination import CustomPagination
 
 class TransactionViewSet(APIView):
 
@@ -188,3 +188,13 @@ class CustomerTransferView(APIView):
         
 
 
+
+
+class CustomerTransactionListView(generics.ListAPIView):
+    serializer_class = TransactionSerializer
+    pagination_class = CustomPagination
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return Transaction.objects.filter(user=user)

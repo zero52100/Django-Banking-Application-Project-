@@ -227,3 +227,29 @@ class LoanApprovalAPIView(generics.GenericAPIView):
                     return Response({'error': 'Invalid action'}, status=status.HTTP_400_BAD_REQUEST)
         else:
             raise PermissionDenied("You don't have permission to process loans.")
+        
+
+class CustomerLoanStatusListView(generics.ListAPIView):
+    serializer_class = LoanApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        return LoanApplication.objects.filter(user=user)
+
+class LoanApplicationBranchListView(generics.ListAPIView):
+    serializer_class = LoanApplicationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        # Check if the user is a loan officer
+        staff = BankStaff.objects.filter(user=user, designation='loan_officer').first()
+        if staff:
+            # Filter loan applications based on the branch of the loan officer
+            return LoanApplication.objects.filter(branch_id=staff.branch_id)
+        else:
+            raise PermissionDenied("You don't have permission to view loan applications.")
+

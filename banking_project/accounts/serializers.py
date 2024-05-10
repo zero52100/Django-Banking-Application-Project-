@@ -1,7 +1,13 @@
 from rest_framework import serializers
 from .models import Branch,AccountType,BankStaff, Account,Deposit,UserDeposit
+from loans.models import LoanType,LoanApplication
 import re
+from rest_framework.pagination import PageNumberPagination
 
+class CustomPagination(PageNumberPagination):
+    page_size = 5  # Number of loans/deposits per page
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
 class BranchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Branch
@@ -98,3 +104,64 @@ class DepositCreationSerializer(serializers.Serializer):
         if value <= 0:
             raise serializers.ValidationError("Amount must be greater than zero.")
         return value
+class LoanTypeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LoanType
+        fields = '__all__'
+class LoanApplicationSerializer(serializers.ModelSerializer):
+    loan_type_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LoanApplication
+        fields = ['id', 'loan_type', 'loan_type_name','status', 'amount', 'outstanding_balance']
+
+    def get_loan_type_name(self, obj):
+        return obj.loan_type.name if obj.loan_type else None
+class DepositSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Deposit
+        fields = ('id', 'deposit_type', 'interest_rate')
+
+class UserDepositSerializer(serializers.ModelSerializer):
+    deposit_details = DepositSerializer(source='deposit_type', read_only=True)
+
+    class Meta:
+        model = UserDeposit
+        fields = ('id', 'deposit_details', 'amount', 'created_at', 'current_value', 'status', 'deposit_number')
+class AccounDashboardSerializer(serializers.ModelSerializer):
+    branch_name = serializers.SerializerMethodField()
+    account_variant_name = serializers.SerializerMethodField()
+    branch_ifsc_code=serializers.SerializerMethodField()
+    account_holder_name=serializers.SerializerMethodField()
+    account_holder_email=serializers.SerializerMethodField()
+    loans = serializers.SerializerMethodField()
+    deposits = serializers.SerializerMethodField()
+    class Meta:
+        model = Account
+        fields = ('account_holder_name','account_holder_email','account_number',  'account_balance', 'status', 'interest_rate',   'branch_name', 'account_variant_name','branch_ifsc_code','loans','deposits')
+        
+
+    def get_branch_name(self, obj):
+        return obj.branch.branch_name if obj.branch else None
+    def get_branch_ifsc_code(self, obj):
+        return obj.branch.ifsc_code if obj.branch else None
+    def get_account_variant_name(self, obj):
+        return obj.account_variant.account_subtype if obj.account_variant else None
+    def get_account_holder_name(self, obj):
+        return obj.user.full_name if obj.user else None
+    def get_account_holder_email(self, obj):
+        return obj.user.email if obj.user else None
+    def get_loans(self, obj):
+        
+        loans = LoanApplication.objects.filter(user=obj.user)
+        serializer = LoanApplicationSerializer(instance=loans, many=True)
+        return serializer.data
+    def get_deposits(self, obj):
+        deposits = UserDeposit.objects.filter(user=obj.user)
+        serializer = UserDepositSerializer(instance=deposits, many=True)
+        return serializer.data
+    
+
+
+
+    
