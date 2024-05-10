@@ -135,3 +135,51 @@ class LogoutAPIView(APIView):
                 pass  # Handle case where refresh token is not found
 
         return Response({"message": "Invalid refresh token."}, status=status.HTTP_400_BAD_REQUEST)
+    
+#password reset
+class RequestPasswordResetView(APIView):
+    def generate_otp(self):
+        return str(random.randint(100000, 999999))
+
+    def send_otp_email(self, email, otp):
+        subject = 'OTP for Password Reset'
+        message = f'Your OTP for password reset is: {otp}'
+        send_mail(subject, message, 'your_email@gmail.com', [email])
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'message': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        otp = self.generate_otp()
+        self.send_otp_email(email, otp)
+        user.otp = otp
+        user.save()
+
+        return Response({'message': 'An OTP has been sent to your email for password reset.'}, status=status.HTTP_200_OK)
+
+class VerifyOTPAndResetPasswordView(APIView):
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        otp = request.data.get('otp')
+        new_password = request.data.get('new_password')
+        confirm_password = request.data.get('confirm_password')
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({'message': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if user.otp != otp:
+            return Response({'message': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if new_password != confirm_password:
+            return Response({'message': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.otp = None
+        user.save()
+
+        return Response({'message': 'Password reset successful.'}, status=status.HTTP_200_OK)
